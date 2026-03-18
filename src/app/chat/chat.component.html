@@ -1,0 +1,281 @@
+<div class="shell">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+
+    <!-- Brand -->
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          <path d="M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
+        </svg>
+      </div>
+      <span class="brand-name">NetNode</span>
+      <div class="conn-badge" [class.connected]="isConnected()" [class.connecting]="connectionState().toString() === '0'">
+        <span class="conn-dot"></span>
+        <span class="conn-label">{{ connectionLabel() }}</span>
+      </div>
+    </div>
+
+    <!-- My node card -->
+    <div class="my-node">
+      <div class="avatar avatar--me">
+        @if (myHostname()) { {{ initials(myHostname()) }} } @else { … }
+      </div>
+      <div class="my-node-info">
+        @if (myHostname()) {
+          <span class="my-node-name">{{ myHostname() }}</span>
+          <span class="my-node-sub">
+            @if (myNode()?.ip) { {{ myNode()!.ip }} } @else { This device }
+          </span>
+        } @else {
+          <span class="my-node-name my-node-name--resolving">Identifying…</span>
+          <span class="my-node-sub">waiting for server</span>
+        }
+      </div>
+      @if (myNode()?.status) {
+        <span class="status-pill" [class]="statusClass(myNode()!.status)">
+          <span class="status-dot"></span>
+          {{ myNode()!.status }}
+        </span>
+      }
+    </div>
+
+    <!-- Peers section -->
+    <div class="peers-header">
+      <span class="peers-title">Peers</span>
+      <span class="peers-count">{{ onlineCount() }} online</span>
+    </div>
+
+    <nav class="peer-list">
+      @for (peer of otherPeers(); track trackByHostname($index, peer)) {
+        <button
+          class="peer-item"
+          [class.active]="selectedPeer() === peer.hostname"
+          (click)="selectPeer(peer.hostname)"
+          [title]="peer.hostname"
+        >
+          <div class="peer-avatar-wrap">
+            <div class="avatar" [class]="'avatar--' + statusClass(peer.status)">
+              {{ initials(peer.hostname) }}
+            </div>
+            <span class="peer-status-dot" [class]="statusClass(peer.status)"></span>
+          </div>
+
+          <div class="peer-info">
+            <span class="peer-hostname">{{ peer.hostname }}</span>
+            <span class="peer-ip">{{ peer.ip }}</span>
+          </div>
+
+          @if (!peer.publicKey) {
+            <span class="no-key-badge" title="No public key registered">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M18 8h1a4 4 0 0 1 0 8h-1" />
+                <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" />
+                <line x1="6" y1="1" x2="6" y2="4" />
+                <line x1="10" y1="1" x2="10" y2="4" />
+                <line x1="14" y1="1" x2="14" y2="4" />
+              </svg>
+            </span>
+          }
+        </button>
+      } @empty {
+        <div class="peers-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
+            <circle cx="9" cy="7" r="4" />
+            <path d="M3 21v-2a4 4 0 0 1 4-4h4" />
+            <path d="M16 11l2 2 4-4" />
+          </svg>
+          <span>No peers yet</span>
+        </div>
+      }
+    </nav>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <div class="e2e-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        End-to-end encrypted
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── Main ───────────────────────────────────────────────────────────── -->
+  <main class="main">
+
+    @if (activePeer(); as peer) {
+
+      <!-- Chat header -->
+      <header class="chat-header">
+        <div class="chat-header-peer">
+          <div class="peer-avatar-wrap">
+            <div class="avatar avatar--lg" [class]="'avatar--' + statusClass(peer.status)">
+              {{ initials(peer.hostname) }}
+            </div>
+            <span class="peer-status-dot" [class]="statusClass(peer.status)"></span>
+          </div>
+          <div class="chat-header-info">
+            <span class="chat-header-name">{{ peer.hostname }}</span>
+            <span class="chat-header-meta">
+              {{ peer.ip }} ·
+              <span [class]="'status-text ' + statusClass(peer.status)">{{ peer.status }}</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="chat-header-actions">
+          @if (peer.publicKey) {
+            <span class="lock-badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              Encrypted
+            </span>
+          } @else {
+            <span class="nokey-badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+              No key
+            </span>
+          }
+        </div>
+      </header>
+
+      <!-- Messages -->
+      <div class="messages" #msgContainer>
+
+        @if (activeMessages().length === 0) {
+          <div class="messages-empty">
+            <div class="messages-empty-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <p>No messages yet</p>
+            <span>Start the conversation with <strong>{{ peer.hostname }}</strong></span>
+          </div>
+        }
+
+        @for (msg of activeMessages(); track trackByMsg($index, msg); let i = $index) {
+          @let isMine = msg.senderHostname === myHostname();
+          @let prevMsg = i > 0 ? activeMessages()[i - 1] : null;
+          @let showDate = !prevMsg || formatDate(msg.timestamp) !== formatDate(prevMsg.timestamp);
+
+          @if (showDate) {
+            <div class="date-divider">
+              <span>{{ formatDate(msg.timestamp) }}</span>
+            </div>
+          }
+
+          <div class="msg-row" [class.mine]="isMine" [class.theirs]="!isMine">
+            @if (!isMine) {
+              <div class="msg-avatar">{{ initials(msg.senderHostname) }}</div>
+            }
+            <div class="msg-body">
+              <div class="msg-bubble">
+                <p class="msg-text">{{ msg.plaintext }}</p>
+                <span class="msg-time">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.6">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  {{ formatTime(msg.timestamp) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Input area -->
+      <div class="composer">
+
+        @if (sendError()) {
+          <div class="composer-error">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            {{ sendError() }}
+          </div>
+        }
+
+        @if (hasNoKey()) {
+          <div class="composer-warning">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            {{ peer.hostname }} hasn't registered a public key yet — messages can't be encrypted
+          </div>
+        }
+
+        <div class="composer-row" [class.disabled]="hasNoKey() || !isConnected()">
+          <textarea
+            class="composer-input"
+            [ngModel]="inputText()"
+            (ngModelChange)="inputText.set($event)"
+            (keydown)="onKeyDown($event)"
+            placeholder="Message {{ peer.hostname }}…"
+            rows="1"
+            [disabled]="hasNoKey() || !isConnected()"
+          ></textarea>
+          <button
+            class="send-btn"
+            (click)="send()"
+            [disabled]="!canSend() || isSending()"
+            [class.loading]="isSending()"
+            title="Send  (Enter)"
+          >
+            @if (isSending()) {
+              <span class="spinner"></span>
+            } @else {
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            }
+          </button>
+        </div>
+      </div>
+
+    } @else {
+
+      <!-- Empty state — no peer selected -->
+      <div class="no-peer">
+        <div class="no-peer-graphic">
+          <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.15">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            <path d="M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
+          </svg>
+        </div>
+        @if (!isConnected()) {
+          <h2>Connecting to network…</h2>
+          <p>Establishing a secure WebSocket connection to the NetNode server.</p>
+          <div class="no-peer-spinner">
+            <span class="spinner spinner--lg"></span>
+          </div>
+        } @else if (otherPeers().length === 0) {
+          <h2>No peers on the network</h2>
+          <p>Waiting for other nodes to come online. They'll appear in the sidebar automatically.</p>
+        } @else {
+          <h2>Select a peer to start chatting</h2>
+          <p>Choose a node from the sidebar. All messages are end-to-end encrypted.</p>
+        }
+      </div>
+    }
+
+  </main>
+
+</div>
