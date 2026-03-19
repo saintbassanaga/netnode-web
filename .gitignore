@@ -1,43 +1,36 @@
-# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+# ── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.npm
 
-# Compiled output
-/dist
-/tmp
-/out-tsc
-/bazel-out
+# ── Angular ───────────────────────────────────────────────────────────────────
+dist/
+.angular/cache/
+out-tsc/
+coverage/
+.sass-cache/
 
-# Node
-/node_modules
-npm-debug.log
-yarn-error.log
+# ── Tauri ─────────────────────────────────────────────────────────────────────
+src-tauri/target/
+app-icon.png
 
-# IDEs and editors
+# ── IDE ───────────────────────────────────────────────────────────────────────
 .idea/
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-
-# Visual Studio Code
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-.history/*
+*.sublime-workspace
+*.sublime-project
 
-# Miscellaneous
-/.angular/cache
-.sass-cache/
-/connect.lock
-/coverage
-/libpeerconnection.log
-testem.log
-/typings
-__screenshots__/
-
-# System files
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ── Env / secrets ─────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
