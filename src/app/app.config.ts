@@ -11,6 +11,8 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(),
     provideRouter(routes),
     {
+
+
       // Loads (or generates) the RSA identity key pair before anything renders.
       provide: APP_INITIALIZER,
       useFactory: (crypto: CryptoService) => () => crypto.init(),

@@ -4,6 +4,7 @@ import { map } from 'rxjs/operators';
 import { StompService } from './stomp.service';
 import { PresenceService } from './presence.service';
 import { CryptoService } from './crypto.service';
+import { NotificationService } from './notification.service';
 import { EncryptedMessage, HistoryResponse } from './netnode.types';
 
 export interface DecryptedMessage {
@@ -30,7 +31,10 @@ export class MessageService implements OnDestroy {
     private stomp: StompService,
     private presenceService: PresenceService,
     private cryptoService: CryptoService,
-  ) {}
+    private notificationService: NotificationService,
+  ) {
+    this.notificationService.requestPermission();
+  }
 
   /**
    * Mandatory startup sequence (called after STOMP OPEN):
@@ -50,7 +54,7 @@ export class MessageService implements OnDestroy {
     this.subscription = this.stomp
       .watch('/user/queue/messages')
       .pipe(map((f) => JSON.parse(f.body) as EncryptedMessage))
-      .subscribe((msg) => this.decryptAndEmit(msg));
+      .subscribe((msg) => this.decryptAndEmit(msg, true));
 
     // Subscribe to history before requesting it so no frame is missed.
     this.historySubscription = this.stomp
@@ -96,7 +100,7 @@ export class MessageService implements OnDestroy {
     });
   }
 
-  private async decryptAndEmit(msg: EncryptedMessage): Promise<void> {
+  private async decryptAndEmit(msg: EncryptedMessage, notify = false): Promise<void> {
     try {
       const plaintext = await this.cryptoService.decryptMessage(msg.payload, msg.encryptedKey);
       this._messages$.next({
@@ -105,6 +109,12 @@ export class MessageService implements OnDestroy {
         plaintext,
         timestamp: msg.timestamp,
       });
+      if (notify) {
+        this.notificationService.send(
+          `Message from ${msg.senderHostname}`,
+          plaintext.length > 80 ? plaintext.slice(0, 80) + '…' : plaintext,
+        );
+      }
     } catch (err) {
       console.error('[MessageService] decrypt failed from', msg.senderHostname, err);
     }
