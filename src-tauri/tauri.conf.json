@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "tech.bytesmind.netnode",
   "build": {
-    "beforeDevCommand": "npm start",
+    "beforeDevCommand": "yarn start",
     "devUrl": "http://localhost:4200",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "yarn build",
     "frontendDist": "../dist/netnode-web/browser"
   },
   "app": {
