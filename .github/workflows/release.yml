@@ -20,7 +20,7 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
     outputs:
-      release-id: ${{ steps.create.outputs.id }}
+      release-id: ${{ steps.create.outputs.result }}
       tag: ${{ steps.tag.outputs.value }}
     steps:
       - name: Resolve tag
