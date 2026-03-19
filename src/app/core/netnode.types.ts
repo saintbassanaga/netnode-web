@@ -12,11 +12,13 @@
  *    /app/message.send          EncryptedMessage      send encrypted P2P message
  *    /app/keys.register         KeyRegistration       publish your public key
  *    /app/presence.request      (no body)             request current peer list
+ *    /app/history.request       (no body)             request last 100 messages (oldest first)
  *
  *  Server → Client  (SUBSCRIBE to …)
  *    /topic/presence                                  PresenceAnnouncement broadcasts
  *    /user/{hostname}/queue/messages                  incoming EncryptedMessage frames
  *    /user/{hostname}/queue/presence                  PresenceAnnouncement (on-demand)
+ *    /user/{hostname}/queue/history                   HistoryResponse (on-demand)
  * ────────────────────────────────────────────────────────────────────────
  */
 
@@ -83,6 +85,16 @@ export interface KeyRegistration {
   keyAlgorithm: 'RSA' | 'EC';
   /** Base64(RSASSA-PKCS1-v1_5 or ECDSA signature of the server-stamped hostname bytes). */
   signature: string;
+}
+
+/**
+ * Response from /app/history.request
+ * Delivered to /user/{hostname}/queue/history
+ * Contains the last 100 messages addressed to you, oldest first.
+ */
+export interface HistoryResponse {
+  messages: EncryptedMessage[];
+  retrievedAt: string;
 }
 
 // ── REST types ────────────────────────────────────────────────────────────────

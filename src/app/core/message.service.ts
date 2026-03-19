@@ -4,7 +4,7 @@ import { map } from 'rxjs/operators';
 import { StompService } from './stomp.service';
 import { PresenceService } from './presence.service';
 import { CryptoService } from './crypto.service';
-import { EncryptedMessage } from './netnode.types';
+import { EncryptedMessage, HistoryResponse } from './netnode.types';
 
 export interface DecryptedMessage {
   senderHostname: string;
@@ -23,6 +23,7 @@ export class MessageService implements OnDestroy {
   readonly myPublicKeyB64 = this._myPublicKeyB64.asReadonly();
 
   private subscription?: Subscription;
+  private historySubscription?: Subscription;
   private initialized = false;
 
   constructor(
@@ -51,15 +52,26 @@ export class MessageService implements OnDestroy {
       .pipe(map((f) => JSON.parse(f.body) as EncryptedMessage))
       .subscribe((msg) => this.decryptAndEmit(msg));
 
-    this.stomp.publish({
-      destination: '/app/presence.request',
-      body: '',
-    });
+    // Subscribe to history before requesting it so no frame is missed.
+    this.historySubscription = this.stomp
+      .watch('/user/queue/history')
+      .pipe(map((f) => (JSON.parse(f.body) as HistoryResponse).messages))
+      .subscribe((msgs) => {
+        // Oldest-first from server — emit sequentially so conversations populate in order.
+        for (const msg of msgs) {
+          this.decryptAndEmit(msg);
+        }
+      });
+
+    this.stomp.publish({ destination: '/app/presence.request', body: '' });
+    this.stomp.publish({ destination: '/app/history.request', body: '' });
   }
 
   reset(): void {
     this.subscription?.unsubscribe();
     this.subscription = undefined;
+    this.historySubscription?.unsubscribe();
+    this.historySubscription = undefined;
     this.initialized = false;
     this._myPublicKeyB64.set(null);
   }
@@ -100,5 +112,6 @@ export class MessageService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.subscription?.unsubscribe();
+    this.historySubscription?.unsubscribe();
   }
 }
