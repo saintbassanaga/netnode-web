@@ -72,10 +72,30 @@ export interface NodeInfo {
 /**
  * Sent to /app/keys.register immediately after subscribing to your queue.
  * Triggers the server to drain any offline messages queued for this hostname.
+ *
+ * The server verifies the signature before storing the key:
+ *   signature = Base64(Sign(privateKey, TextEncoder().encode(serverHostname)))
  */
 export interface KeyRegistration {
   /** Base64-encoded SubjectPublicKeyInfo (DER) of your RSA/ECC public key. */
   publicKey: string;
+  /** Algorithm family used to reconstruct the key server-side ("RSA" or "EC"). */
+  keyAlgorithm: 'RSA' | 'EC';
+  /** Base64(RSASSA-PKCS1-v1_5 or ECDSA signature of the server-stamped hostname bytes). */
+  signature: string;
+}
+
+// ── REST types ────────────────────────────────────────────────────────────────
+
+/**
+ * Response from GET /api/me
+ * Returns the server-stamped identity for the calling machine.
+ * Fetch this before opening the WebSocket so the client knows exactly
+ * what hostname to sign for KeyRegistration.
+ */
+export interface NodeIdentity {
+  hostname: string;
+  ip: string;
 }
 
 // ── STOMP helper types ────────────────────────────────────────────────────────
@@ -86,4 +106,23 @@ export interface StompConnectHeaders {
   login: string;
   /** Must match the server's heartbeat config (default 10000). */
   'heart-beat'?: string;
+}
+
+/**
+ * Headers present in the STOMP CONNECTED frame sent by the server.
+ *
+ * The server resolves the authoritative hostname (reverse DNS → X-Hostname header → raw IP)
+ * and echoes it back here via StompOutboundInterceptor. Read this value, sign it, then
+ * send /app/keys.register — this guarantees the client signs exactly what the server stored.
+ *
+ * @example
+ * // in StompService, after connectionState$ emits OPEN:
+ * const hostname = (serverHeaders as StompConnectedHeaders).hostname;
+ * const signature = await cryptoService.sign(hostname);
+ */
+export interface StompConnectedHeaders {
+  /** Server-stamped hostname for this connection (reverse DNS → X-Hostname → raw IP). */
+  hostname: string;
+  'heart-beat': string;
+  version: string;
 }

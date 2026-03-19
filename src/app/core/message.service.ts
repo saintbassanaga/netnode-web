@@ -4,7 +4,7 @@ import { map } from 'rxjs/operators';
 import { StompService } from './stomp.service';
 import { PresenceService } from './presence.service';
 import { CryptoService } from './crypto.service';
-import { EncryptedMessage, KeyRegistration } from './netnode.types';
+import { EncryptedMessage } from './netnode.types';
 
 export interface DecryptedMessage {
   senderHostname: string;
@@ -23,7 +23,6 @@ export class MessageService implements OnDestroy {
   readonly myPublicKeyB64 = this._myPublicKeyB64.asReadonly();
 
   private subscription?: Subscription;
-  private privateKey?: CryptoKey;
   private initialized = false;
 
   constructor(
@@ -36,27 +35,21 @@ export class MessageService implements OnDestroy {
    * Mandatory startup sequence (called after STOMP OPEN):
    *   1. Presence subscriptions already live (PresenceService constructor)
    *   2. Subscribe to /user/queue/messages  ← Spring routes to us automatically
-   *   3. Send keys.register                 ← server drains offline queue
-   *   4. Send presence.request
+   *   3. Send presence.request
+   *
+   * Key registration is handled by StompService.connected$ on every connect.
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
     this.initialized = true;
 
-    const keyPair = await this.cryptoService.getOrCreateKeyPair();
-    this._myPublicKeyB64.set(keyPair.publicKeyB64);
-    this.privateKey = keyPair.privateKey;
+    this._myPublicKeyB64.set(await this.cryptoService.getPublicKeyB64());
 
     // Spring resolves /user/queue/messages to the authenticated principal — no hostname needed.
     this.subscription = this.stomp
       .watch('/user/queue/messages')
       .pipe(map((f) => JSON.parse(f.body) as EncryptedMessage))
       .subscribe((msg) => this.decryptAndEmit(msg));
-
-    this.stomp.publish({
-      destination: '/app/keys.register',
-      body: JSON.stringify({ publicKey: keyPair.publicKeyB64 } satisfies KeyRegistration),
-    });
 
     this.stomp.publish({
       destination: '/app/presence.request',
@@ -77,10 +70,7 @@ export class MessageService implements OnDestroy {
       throw new Error(`Recipient "${recipientHostname}" has no public key registered yet`);
     }
 
-    const { payload, encryptedKey } = await this.cryptoService.encryptMessage(
-      plaintext,
-      peer.publicKey,
-    );
+    const { payload, encryptedKey } = await this.cryptoService.encryptMessage(plaintext, peer.publicKey);
 
     this.stomp.publish({
       destination: '/app/message.send',
@@ -95,13 +85,8 @@ export class MessageService implements OnDestroy {
   }
 
   private async decryptAndEmit(msg: EncryptedMessage): Promise<void> {
-    if (!this.privateKey) return;
     try {
-      const plaintext = await this.cryptoService.decryptMessage(
-        msg.payload,
-        msg.encryptedKey,
-        this.privateKey,
-      );
+      const plaintext = await this.cryptoService.decryptMessage(msg.payload, msg.encryptedKey);
       this._messages$.next({
         senderHostname: msg.senderHostname,
         recipientHostname: msg.recipientHostname,
