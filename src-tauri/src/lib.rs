@@ -25,6 +25,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(
             tauri_plugin_stronghold::Builder::new(|password| {
                 derive_vault_key(password.as_bytes()).expect("vault key derivation failed")

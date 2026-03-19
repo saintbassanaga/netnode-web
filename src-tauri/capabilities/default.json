@@ -13,6 +13,8 @@
     "stronghold:allow-remove-store-record",
     "stronghold:allow-save",
     "os:allow-hostname",
-    "notification:default"
+    "notification:default",
+    "updater:default",
+    "process:allow-relaunch"
   ]
 }
