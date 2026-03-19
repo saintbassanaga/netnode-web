@@ -9,6 +9,7 @@ import { KeyRegistration, NodeIdentity } from './netnode.types';
 export class StompService extends RxStomp {
   /** Hostname resolved by /api/me before each connection attempt. */
   private pendingHostname: string | null = null;
+  private pingInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(private cryptoService: CryptoService) {
     super();
@@ -41,6 +42,16 @@ export class StompService extends RxStomp {
     this.configure(cfg);
     this.activate();
 
+    // Clear the ping timer whenever the connection drops so we don't pile up intervals.
+    this.connectionState$
+      .pipe(filter((s) => s !== RxStompState.OPEN))
+      .subscribe(() => {
+        if (this.pingInterval !== null) {
+          clearInterval(this.pingInterval);
+          this.pingInterval = null;
+        }
+      });
+
     // After each STOMP CONNECTED: sign the pre-fetched hostname and register the key.
     // Fires on reconnect too, which re-establishes the server-side mapping after a drop.
     this.connectionState$
@@ -68,6 +79,15 @@ export class StompService extends RxStomp {
         } catch (err) {
           console.error('[StompService] key registration failed:', err);
         }
+
+        // Send a ping every 2 minutes to update lastActivityAt on the server.
+        // STOMP heartbeat (\n frames) keeps the TCP connection alive but does NOT
+        // update the server-side activity timestamp — only a real SEND frame does.
+        this.pingInterval = setInterval(() => {
+          if (this.connected()) {
+            this.publish({ destination: '/app/ping', body: '' });
+          }
+        }, 120_000);
       });
   }
 }
